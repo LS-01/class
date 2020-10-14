@@ -1,0 +1,10 @@
+echo "1 2 3 4 5 6 7 9 a v 你好 . /8 12" | tr -c "[:digit:]" " " | tr -s " " |xargs |tr " " "+" |xargs echo     |bc
+echo "1 2 3 4 5 6 7 9 a v 你好 . /8 12 abc234"  | tr -s -c "0-9" " " |echo  $[ `tr ' ' '+'`0 ]
+echo $[ `echo "1 2 3 4 5 6 7 9 a v 你好 . /8 12 abc234"  | tr -s -c "0-9" " " | xargs  | tr " " "+" ` ]
+for i in `echo "1 2 3 4 5 6 7 9 a v 你好 . /8 12 abc234"  | tr -s -c "0-9" " "`;do\nsum=$[$sum+$i]\ndone
+echo $sum 
+echo "1 2 3 4 5 6 7 9 a v 你好 . /8 12 13a a12" | tr " " "\n" | grep -e "^[0-9]*$" 
+
+echo $PATH | tr ":" "\n"|tail -n 1  
+echo $PATH | cut -d ':' -f`echo $PATH':' | tr -cd ':' | wc -c`
+echo $PATH | rev | cut -d ":" -f 1 | rev
