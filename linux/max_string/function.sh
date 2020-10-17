@@ -1,8 +1,26 @@
 #!/bin/bash
+
+fliter_types=(mp4 avi gz zip tar)
+
+function fliter(){
+    file_name=$1
+    type_name=`basename ${file_name} | rev | cut -d "." -f 1 | rev`
+    for i in ${filter_types[@]};do
+        if [[ ${type_name} == ${i} ]];then
+            echo "Fliters On! ${file_name}"
+            return 1
+        fi
+    done
+}
+
 function find_max_in_file(){
     if [[ ! -f $1 ]];then
         echo "$1 is not a r_file!"
         return
+    fi
+    fliter $1
+    if [[ $? -eq 1 ]];then
+        return 
     fi
     echo "Finding Max_String in file $1"
     words=`cat $1 | tr -s -c "a-zA-Z" "\n"`
