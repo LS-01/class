@@ -14,28 +14,28 @@ int add(int a, int b) {
 }
 
 TEST(func1, add) {
-    EXPECT_EQ(add(2, 3), 5);
+    EXPECT_NE(add(2, 3), 5);
     EXPECT_EQ(add(2, 6), 8);
 //    ASSERT_EQ(add(3, 3), 4);
-    EXPECT_EQ(add(2, 6), 8);
+    EXPECT_GE(add(2, 6), 8);
 }
 
 TEST(func2, add) {
-    EXPECT_EQ(add(2, 3), 5);
-    EXPECT_EQ(add(2, 6), 8);
+    EXPECT_GT(add(2, 3), 5);
+    EXPECT_LT(add(2, 6), 8);
 //    ASSERT_EQ(add(3, 3), 4);
     EXPECT_EQ(add(2, 6), 8);
 }
 
 TEST(testfunc, add) {
-    EXPECT_EQ(add(2, 3), 5);
+    EXPECT_LE(add(2, 3), 5);
     EXPECT_EQ(add(2, 6), 8);
 //    ASSERT_EQ(add(3, 3), 4);
     EXPECT_EQ(add(2, 6), 8);
 }
 
 TEST(test, funcadd) {
-    EXPECT_EQ(add(2, 3), 5);
+    EXPECT_EQ(add(2, 4), 5);
     EXPECT_EQ(add(2, 6), 8);
 //    ASSERT_EQ(add(3, 3), 4);
     EXPECT_EQ(add(2, 6), 8);
