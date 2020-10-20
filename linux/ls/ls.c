@@ -31,7 +31,6 @@
 
 void do_ls(char **, int);
 void show_files(char files[][FILE_NAME_LENGTH], int, char *);
-void print_name(char *, int, char *);
 int files_sort_for_max_length(char files[][FILE_NAME_LENGTH], int);
 int str_tolower_comp(char *, char *);
 
@@ -141,6 +140,155 @@ void do_ls(char **names, int size) {
 
 void show_files(char files[][FILE_NAME_LENGTH], int length, char *dir_name) {
     int max_length = files_sort_for_max_length(files, length) + 1;
+
+    char *frms[length];
+    char modes[length][11];
+    long nlinks[length];
+    char *pw_names[length];
+    char *gr_names[length];
+    long long st_sizes[length];
+    char times[length][13];
+    int arg_max_length[6] = {0};
+
+    for (int i = 0; i < length; i++) {
+        char full_name[FILE_NAME_LENGTH * 2 + 5];
+        if (dir_name != NULL) {
+            sprintf(full_name, "%s/%s", dir_name, files[i]);
+        } else {
+            sprintf(full_name, "%s", files[i]);
+        }
+        struct stat sb;
+        if (lstat(full_name, &sb) == -1) {
+            perror("lstat");
+            exit(EXIT_FAILURE);
+        }
+
+        char mode[11] = {0};
+
+        char *frm;
+        switch (sb.st_mode & S_IFMT) {
+            case S_IFBLK:
+                mode[0] = 'b';
+                frm = YELLOW("%*s");
+                break;
+            case S_IFCHR:
+                mode[0] = 'c';
+                frm = YELLOW("%*s");
+                break;
+            case S_IFDIR:
+                mode[0] = 'd';
+                frm = BLUE("%*s");
+                break;
+            case S_IFIFO:
+                mode[0] = 'p';
+                frm = BLUE("%*s");
+                break;
+            case S_IFLNK:
+                mode[0] = 'l';
+                frm = CYAN("%*s");
+                break;
+            case S_IFREG:
+                mode[0] = '-';
+                if (access(full_name, X_OK) == 0) {
+                    frm = GREEN_HL("%*s");
+                } else {
+                    frm = "%*s";
+                }
+                break;
+            case S_IFSOCK:
+                mode[0] = 's';
+                frm = YELLOW("%*s");
+                break;
+        }
+        frms[i] = frm;
+
+        if (show_config.show_list) {
+            struct passwd *pd = getpwuid(sb.st_uid);
+            struct group *gp = getgrgid(sb.st_gid);
+
+            if (sb.st_mode & S_IRUSR) {
+                mode[1] = 'r';
+            } else {
+                mode[1] = '-';
+            }
+            if (sb.st_mode & S_IWUSR) {
+                mode[2] = 'w';
+            } else {
+                mode[2] = '-';
+            }
+            if (sb.st_mode & S_IXUSR) {
+                mode[3] = 'x';
+            } else {
+                mode[3] = '-';
+            }
+            if (sb.st_mode & S_IRGRP) {
+                mode[4] = 'r';
+            } else {
+                mode[4] = '-';
+            }
+            if (sb.st_mode & S_IWGRP) {
+                mode[5] = 'w';
+            } else {
+                mode[5] = '-';
+            }
+            if (sb.st_mode & S_IXGRP) {
+                mode[6] = 'x';
+            } else {
+                mode[6] = '-';
+            }
+            if (sb.st_mode & S_IROTH) {
+                mode[7] = 'r';
+            } else {
+                mode[7] = '-';
+            }
+            if (sb.st_mode & S_IWOTH) {
+                mode[8] = 'w';
+            } else {
+                mode[8] = '-';
+            }
+            if (sb.st_mode & S_IXOTH) {
+                mode[9] = 'x';
+            } else {
+                mode[9] = '-';
+            }
+            char time[13] = {0};
+            char *c_time = ctime(&sb.st_ctime);
+            for (int i = 4; i < 16; i++) {
+                time[i - 4] = c_time[i];
+            }
+            strcpy(modes[i], mode);
+            nlinks[i] = (long)sb.st_nlink;
+            pw_names[i] = pd->pw_name;
+            gr_names[i] = gp->gr_name;
+            st_sizes[i] = (long long)sb.st_size;
+            strcpy(times[i], time);
+
+            char temp1[100] = {0};
+            char temp2[100] = {0};
+
+            if (strlen(modes[i]) > arg_max_length[0]) {
+                arg_max_length[0] = strlen(modes[i]);
+            }
+            sprintf(temp1, "%ld", nlinks[i]); 
+            if (strlen(temp1) > arg_max_length[1]) {
+                arg_max_length[1] = strlen(temp1);
+            }
+            if (strlen(pw_names[i]) > arg_max_length[2]) {
+                arg_max_length[2] = strlen(pw_names[i]);
+            }
+            if (strlen(gr_names[i]) > arg_max_length[3]) {
+                arg_max_length[3] = strlen(gr_names[i]);
+            }
+            sprintf(temp2, "%lld", st_sizes[i]);
+            if (strlen(temp2) > arg_max_length[4]) {
+                arg_max_length[4] = strlen(temp2);
+            }
+            if (strlen(times[i]) > arg_max_length[5]) {
+                arg_max_length[5] = strlen(times[i]);
+            }
+        }
+    }
+
     struct winsize size;
     memset(&size, 0, sizeof(size));
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &size) < 0) {
@@ -153,135 +301,24 @@ void show_files(char files[][FILE_NAME_LENGTH], int length, char *dir_name) {
 
     if (show_config.show_list) {
         for (int i = 0; i < length; i++) {
-            print_name(files[i], 0 - max_length, dir_name);
+            printf("%*s ", arg_max_length[0], modes[i]);
+            printf("%*ld ", arg_max_length[1], nlinks[i]);
+            printf("%*s ", arg_max_length[2], pw_names[i]);
+            printf("%*s ", arg_max_length[3], gr_names[i]);
+            printf("%*lld ", arg_max_length[4], st_sizes[i]);
+            printf("%*s ", arg_max_length[5], times[i]);
+            printf(frms[i], 0 - max_length, files[i]);
             printf("\n");
         }
     } else {
         for (int i = 0; i < row; i++) {
             for (int j = 0; j < col; j++) {
                 if (i + j * row < length) {
-                    print_name(files[i + j * row], 0 - max_length, dir_name);
+                    printf(frms[i], 0 - max_length, files[i + j * row]);
                 }
             }
             printf("\n");
         }
-    }
-}
-
-void print_name(char *name, int style, char *dir_name) {
-    char full_name[FILE_NAME_LENGTH * 2 + 5];
-    if (dir_name != NULL) {
-        sprintf(full_name, "%s/%s", dir_name, name);
-    } else {
-        sprintf(full_name, "%s", name);
-    }
-    struct stat sb;
-    if (lstat(full_name, &sb) == -1) {
-        perror("lstat");
-        exit(EXIT_FAILURE);
-    }
-
-    char mode[11] = {0};
-
-    char *frm;
-    switch (sb.st_mode & S_IFMT) {
-        case S_IFBLK:
-            mode[0] = 'b';
-            frm = YELLOW("%*s");
-            break;
-        case S_IFCHR:
-            mode[0] = 'c';
-            frm = YELLOW("%*s");
-            break;
-        case S_IFDIR:
-            mode[0] = 'd';
-            frm = BLUE("%*s");
-            break;
-        case S_IFIFO:
-            mode[0] = 'p';
-            frm = BLUE("%*s");
-            break;
-        case S_IFLNK:
-            mode[0] = 'l';
-            frm = CYAN("%*s");
-            break;
-        case S_IFREG:
-            mode[0] = '-';
-            if (access(full_name, X_OK) == 0) {
-                frm = GREEN_HL("%*s");
-            } else {
-                frm = "%*s";
-            }
-            break;
-        case S_IFSOCK:
-            mode[0] = 's';
-            frm = YELLOW("%*s");
-            break;
-    }
-
-    if (show_config.show_list) {
-        struct passwd *pd = getpwuid(sb.st_uid);
-        struct group *gp = getgrgid(sb.st_gid);
-
-        if (sb.st_mode & S_IRUSR) {
-            mode[1] = 'r';
-        } else {
-            mode[1] = '-';
-        }
-        if (sb.st_mode & S_IWUSR) {
-            mode[2] = 'w';
-        } else {
-            mode[2] = '-';
-        }
-        if (sb.st_mode & S_IXUSR) {
-            mode[3] = 'x';
-        } else {
-            mode[3] = '-';
-        }
-        if (sb.st_mode & S_IRGRP) {
-            mode[4] = 'r';
-        } else {
-            mode[4] = '-';
-        }
-        if (sb.st_mode & S_IWGRP) {
-            mode[5] = 'w';
-        } else {
-            mode[5] = '-';
-        }
-        if (sb.st_mode & S_IXGRP) {
-            mode[6] = 'x';
-        } else {
-            mode[6] = '-';
-        }
-        if (sb.st_mode & S_IROTH) {
-            mode[7] = 'r';
-        } else {
-            mode[7] = '-';
-        }
-        if (sb.st_mode & S_IWOTH) {
-            mode[8] = 'w';
-        } else {
-            mode[8] = '-';
-        }
-        if (sb.st_mode & S_IXOTH) {
-            mode[9] = 'x';
-        } else {
-            mode[9] = '-';
-        }
-        char time[13] = {0};
-        char *c_time = ctime(&sb.st_ctime);
-        for (int i = 4; i < 16; i++) {
-            time[i - 4] = c_time[i];
-        }
-        printf("%s ", mode);
-        printf("%ld ", (long)sb.st_nlink);
-        printf("%s ", pd->pw_name);
-        printf("%s ", gp->gr_name);
-        printf("%lld ", (long long)sb.st_size);
-        printf("%s ", time);
-        printf(frm, style, name); 
-    } else {
-        printf(frm, style, name);
     }
 }
 
