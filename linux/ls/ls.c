@@ -20,14 +20,12 @@
 
 #define FILE_NAME_LENGTH 256
 
-#define COLOR(a, color) "\033[" #color "m" a "\033[0m"
-#define COLOR_HL(a, color) "\033[1;" #color "m" a "\033[0m"
+#define COLOR(a, color) "\033[1;" #color "m" a "\033[0m"
 #define RED(a) COLOR(a, 31)
 #define GREEN(a) COLOR(a, 32)
 #define YELLOW(a) COLOR(a, 33)
 #define BLUE(a) COLOR(a, 34)
 #define CYAN(a) COLOR(a, 36)
-#define GREEN_HL(a) COLOR_HL(a, 32)
 
 void do_ls(char **, int);
 void show_files(char files[][FILE_NAME_LENGTH], int, char *);
@@ -129,7 +127,7 @@ void do_ls(char **names, int size) {
         closedir(dir);
         if (dir_index > 1) {
             printf("%s:\n", dirs[i]);
-        }
+        } 
         show_files(dir_files, j, dirs[i]);
         if (dir_index > 1 && i != dir_index - 1) {
             printf("\n");
@@ -144,11 +142,16 @@ void show_files(char files[][FILE_NAME_LENGTH], int length, char *dir_name) {
     char *frms[length];
     char modes[length][11];
     long nlinks[length];
-    char *pw_names[length];
-    char *gr_names[length];
+    uid_t pw_names[length];
+    gid_t gr_names[length];
     long long st_sizes[length];
     char times[length][13];
     int arg_max_length[6] = {0};
+
+    time_t timep;
+    struct tm *now;
+    time(&timep);
+    now = gmtime(&timep);
 
     for (int i = 0; i < length; i++) {
         char full_name[FILE_NAME_LENGTH * 2 + 5];
@@ -190,7 +193,7 @@ void show_files(char files[][FILE_NAME_LENGTH], int length, char *dir_name) {
             case S_IFREG:
                 mode[0] = '-';
                 if (access(full_name, X_OK) == 0) {
-                    frm = GREEN_HL("%*s");
+                    frm = GREEN("%*s");
                 } else {
                     frm = "%*s";
                 }
@@ -253,13 +256,20 @@ void show_files(char files[][FILE_NAME_LENGTH], int length, char *dir_name) {
             }
             char time[13] = {0};
             char *c_time = ctime(&sb.st_ctime);
-            for (int i = 4; i < 16; i++) {
-                time[i - 4] = c_time[i];
+            struct tm *c_time_tm = gmtime(&sb.st_ctime);
+            for (int j = 4; j < 16; j++) {
+                time[j - 4] = c_time[j];
+            }
+            if (c_time_tm->tm_year < now->tm_year) {
+                for (int j = 7; j < 11; j++) {
+                    time[j] = c_time[j + 4 + 9];
+                }
+                time[11] = '\0';
             }
             strcpy(modes[i], mode);
             nlinks[i] = (long)sb.st_nlink;
-            pw_names[i] = pd->pw_name;
-            gr_names[i] = gp->gr_name;
+            pw_names[i] = sb.st_uid;
+            gr_names[i] = sb.st_gid;
             st_sizes[i] = (long long)sb.st_size;
             strcpy(times[i], time);
 
@@ -273,11 +283,11 @@ void show_files(char files[][FILE_NAME_LENGTH], int length, char *dir_name) {
             if (strlen(temp1) > arg_max_length[1]) {
                 arg_max_length[1] = strlen(temp1);
             }
-            if (strlen(pw_names[i]) > arg_max_length[2]) {
-                arg_max_length[2] = strlen(pw_names[i]);
+            if (strlen(pd->pw_name) > arg_max_length[2]) {
+                arg_max_length[2] = strlen(pd->pw_name);
             }
-            if (strlen(gr_names[i]) > arg_max_length[3]) {
-                arg_max_length[3] = strlen(gr_names[i]);
+            if (strlen(gp->gr_name) > arg_max_length[3]) {
+                arg_max_length[3] = strlen(gp->gr_name);
             }
             sprintf(temp2, "%lld", st_sizes[i]);
             if (strlen(temp2) > arg_max_length[4]) {
@@ -289,32 +299,36 @@ void show_files(char files[][FILE_NAME_LENGTH], int length, char *dir_name) {
         }
     }
 
-    struct winsize size;
-    memset(&size, 0, sizeof(size));
-    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &size) < 0) {
-        perror("ioctl()");
-        exit(EXIT_FAILURE);
-    }
-
-    int col = (int)floor(1.0 * size.ws_col / max_length);
-    int row = (int)ceil(1.0 * length / col);
-
     if (show_config.show_list) {
         for (int i = 0; i < length; i++) {
+            struct passwd *pd = getpwuid(pw_names[i]);
+            struct group *gp = getgrgid(gr_names[i]);
+
             printf("%*s ", arg_max_length[0], modes[i]);
             printf("%*ld ", arg_max_length[1], nlinks[i]);
-            printf("%*s ", arg_max_length[2], pw_names[i]);
-            printf("%*s ", arg_max_length[3], gr_names[i]);
+            printf("%*s ", 0 - arg_max_length[2], pd->pw_name);
+            printf("%*s ", 0 - arg_max_length[3], gp->gr_name);
             printf("%*lld ", arg_max_length[4], st_sizes[i]);
             printf("%*s ", arg_max_length[5], times[i]);
             printf(frms[i], 0 - max_length, files[i]);
             printf("\n");
         }
     } else {
+        struct winsize size;
+        memset(&size, 0, sizeof(size));
+
+        int col;
+        if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &size) < 0) {
+            col = 1;
+        } else {
+            col = (int)floor(1.0 * size.ws_col / max_length);
+        }
+        int row = (int)ceil(1.0 * length / col);
+
         for (int i = 0; i < row; i++) {
             for (int j = 0; j < col; j++) {
                 if (i + j * row < length) {
-                    printf(frms[i], 0 - max_length, files[i + j * row]);
+                    printf(frms[i + j * row], 0 - max_length, files[i + j * row]);
                 }
             }
             printf("\n");
