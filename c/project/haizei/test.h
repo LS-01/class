@@ -4,7 +4,7 @@
 	> Mail: 
 	> Created Time: Fri 16 Oct 2020 06:19:38 PM CST
  ************************************************************************/
-
+#include <haizei/linklist.h>
 #ifndef _TEST_H
 #define _TEST_H
 
@@ -71,6 +71,7 @@ typedef void (*TestFunc)();
 typedef struct Function {
     TestFunc func;
     const char *str;
+    struct LinkNode p;
 } Function;
 
 struct FunctionInfo {
