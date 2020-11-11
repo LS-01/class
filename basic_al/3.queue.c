@@ -34,8 +34,23 @@ int empty(Queue *q) {
 }
 
 int expand(Queue *q) {
-
-    return 0;
+    int extra_size = q->length;
+    int *p;
+    while (extra_size) {
+        p = (int *)malloc(sizeof(int) * (q->length + extra_size));
+        if (p) break;
+        extra_size >>= 1;
+    }
+    if (p == NULL) return 0;
+    for (int i = q->head, j = 0; j < q->cnt; j++) {
+        p[j] = q->data[(i + j) % q->length];
+    }
+    free(q->data);
+    q->data = p;
+    q->length += extra_size;
+    q->head = 0;
+    q->tail = q->cnt;
+    return 1;
 }
 
 int push(Queue *q, int val) {
