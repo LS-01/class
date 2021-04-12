@@ -1,9 +1,12 @@
 /*************************************************************************
-	> File Name: 11.thread_pool.cpp
-	> Author: ls
+	> File Name: thread_pool.h
+	> Author: 
 	> Mail: 
-	> Created Time: Wed 24 Mar 2021 09:28:03 AM CST
+	> Created Time: 2021年04月12日 星期一 15时27分28秒
  ************************************************************************/
+
+#ifndef _THREAD_POOL_H
+#define _THREAD_POOL_H
 
 #include <iostream>
 #include <vector>
@@ -51,7 +54,6 @@ namespace ls {
     }
 
     void Task::run() {
-        std::cout << "Task run : " << std::endl;
         func();
         return ;
     }
@@ -110,17 +112,4 @@ namespace ls {
     }
 }
 
-void func(int a, int b, int c) {
-    std::cout << "func id : " << a << ", ";
-    std::cout << a + b + c << std::endl;
-    return ;
-}
-
-int main() {
-    ls::ThreadPool tp;
-    for (int i = 0; i < 100; i++) {
-        tp.addOneTask(func, i, 2 * i, 3 * i);
-    }
-    tp.stop();
-    return 0;
-}
+#endif
