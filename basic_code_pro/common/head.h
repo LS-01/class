@@ -17,6 +17,8 @@
 #include <string.h>
 #include <dirent.h>
 #include <errno.h>
+#include <sys/select.h>
+#include <sys/time.h>
 
 #include "common.h"
 #endif
