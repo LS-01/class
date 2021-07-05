@@ -19,6 +19,13 @@
 #include <errno.h>
 #include <sys/select.h>
 #include <sys/time.h>
+#include <sys/wait.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/file.h>
+#include <pthread.h>
+#include <sys/sem.h>
+#include <sys/msg.h>
 
 #include "common.h"
 #endif
