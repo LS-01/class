@@ -1,0 +1,136 @@
+/*************************************************************************
+	> File Name: 1.server.c
+	> Author: ls
+	> Mail: 
+	> Created Time: Wed 21 Jul 2021 10:02:00 AM CST
+ ************************************************************************/
+//主从反应堆
+#include "common/head.h"
+#include "add_to_subreactor.h"
+
+#define MAX 100
+#define MAXQUEUE 10
+#define EPOLL_SIZE 5
+
+void *subreactor(void *arg) {
+    int epollfd = *(int *)arg;
+    struct epoll_event ev, events[5];
+    while (1) {
+        int nfds = epoll_wait(epollfd, events, 5, -1);
+        if (nfds < 0) {
+            perror("epoll_wait");
+            exit(1);
+        }
+        for (int i = 0; i < nfds; i++) {
+            char buff[512] = {0};
+            struct User *user;
+            user = (struct User *)events[i].data.ptr;
+            printf("<sub %d> : %s\n", epollfd, user->name);
+            int nrecv = recv(user->fd, buff, sizeof(buff), 0);
+            if (nrecv < 0) {
+                epoll_ctl(epollfd, EPOLL_CTL_DEL, user->fd, NULL);
+                close(user->fd);
+                user->online = 0;
+            }
+            printf("<sub %d %s> : %s\n", epollfd, user->name, buff);
+        }
+    }
+}
+
+int main(int argc, char **argv) {
+    int opt, listener, epollfd, epollfd_boy, epollfd_girl, port;
+    struct User *users_girl, *users_boy;
+    while ((opt = getopt(argc, argv, "p:")) != -1) {
+        switch (opt) {
+            case 'p':
+                port = atoi(optarg);
+                break;
+            default:
+                fprintf(stderr, "Usage : %s -p port!\n", argv[0]);
+                exit(1);
+        }
+    }
+
+    if ((listener = socket_create(port)) < 0) {
+        perror("socket_create");
+        exit(1);
+    }
+
+    epollfd = epoll_create(1);
+    epollfd_boy = epoll_create(1);
+    epollfd_girl = epoll_create(1);
+
+    if (epollfd < 0 || epollfd_boy < 0 || epollfd_girl < 0) {
+        perror("epoll_create");
+        exit(1);
+    }
+
+    users_boy = (struct User *)calloc(MAX, sizeof(struct User));
+    users_girl = (struct User *)calloc(MAX, sizeof(struct User));
+
+    struct task_queue boyQueue;
+    struct task_queue girlQueue;
+    
+    task_queue_init(&boyQueue, MAXQUEUE);
+    task_queue_init(&girlQueue, MAXQUEUE);
+
+    pthread_t tid_boy, tid_girl;
+    pthread_create(&tid_boy, NULL, &subreactor, &epollfd_boy);
+    pthread_create(&tid_girl, NULL, &subreactor, &epollfd_girl);
+
+    printf("<%d> : boy\n<%d> : girl\n", epollfd_boy, epollfd_girl);
+
+    struct epoll_event ev, events[EPOLL_SIZE];
+    
+    ev.events = EPOLLIN;
+    ev.data.fd = listener;
+
+    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, listener, &ev) < 0) {
+        perror("epoll_ctl");
+        exit(1);
+    }
+
+    for (;;) {
+        int nfds = epoll_wait(epollfd, events, EPOLL_SIZE, -1);
+        if (nfds < 0) {
+            perror("epoll_wait");
+            exit(1);
+        }
+        for (int i = 0; i < nfds; i++) {
+            if (events[i].data.fd == listener) {
+                struct sockaddr_in client;
+                int new_fd;
+                struct logRequest request;
+                struct logResponse response;
+                socklen_t len = sizeof(client);
+                if ((new_fd = accept(listener, (struct sockaddr *)&client, &len)) < 0) {
+                    perror("accept");
+                    exit(1);
+                }
+                recv(new_fd, (char *)&request, sizeof(request), 0);//block
+                struct User *tmp;
+                if (request.sex) {
+                    tmp = users_boy;
+                    tmp[new_fd].epollfd = epollfd_boy;
+                } else {
+                    tmp = users_girl;
+                    tmp[new_fd].epollfd = epollfd_girl;
+                }
+                strcpy(tmp[new_fd].name, request.name);
+                strcpy(tmp[new_fd].ip, inet_ntoa(client.sin_addr));
+                tmp[new_fd].online = 1;
+                tmp[new_fd].fd = new_fd;
+
+                //验证用户信息，验证会员状态等操作
+                //填充、保留用户信息
+                response.flag = 1;
+                strcpy(response.msg, "OK!");
+                printf("Mag from %s\n", tmp[new_fd].name);
+                send(new_fd, (char *)&response, sizeof(response), 0);//bug
+                add_to_subreactor(&tmp[new_fd]);
+            }
+        }
+    }
+
+    return 0;
+}

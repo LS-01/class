@@ -26,6 +26,11 @@
 #include <pthread.h>
 #include <sys/sem.h>
 #include <sys/msg.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/epoll.h>
 
 #include "common.h"
+#include "thread_pool.h"
 #endif
