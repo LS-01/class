@@ -41,6 +41,8 @@ int socket_create(int port) {
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = inet_addr("0.0.0.0");
+    int opt = 1;
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(int));
     if (bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         return -1;
     }
